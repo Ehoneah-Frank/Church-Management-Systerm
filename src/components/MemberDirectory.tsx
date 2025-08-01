@@ -24,6 +24,7 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
   const [showViewModal, setShowViewModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    memberNumber: 0,
     name: '',
     phone: '',
     email: '',
@@ -79,10 +80,17 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
       return;
     }
     
-    const memberData = {
+    let memberData = {
       ...formData,
       department: formData.department as 'Faith' | 'Love' | 'Hope'
     };
+    
+    // Auto-generate member number for new members
+    if (!editingMember) {
+      const existingNumbers = members.map(m => m.memberNumber).filter(n => n > 0);
+      const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1001;
+      memberData.memberNumber = nextNumber;
+    }
     
     if (editingMember) {
       onUpdateMember(editingMember.id, memberData);
@@ -95,6 +103,7 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
 
   const resetForm = () => {
     setFormData({
+      memberNumber: 0,
       name: '',
       phone: '',
       email: '',
@@ -117,6 +126,7 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
   const handleEdit = (member: Member) => {
     setEditingMember(member);
     setFormData({
+      memberNumber: member.memberNumber,
       name: member.name,
       phone: member.phone,
       email: member.email,
@@ -213,6 +223,18 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
             {editingMember ? 'Edit Member' : 'Add New Member'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Member Number</label>
+              <input
+                type="number"
+                value={formData.memberNumber || ''}
+                onChange={(e) => setFormData({ ...formData, memberNumber: parseInt(e.target.value) || 0 })}
+                placeholder="Auto-generated for new members"
+                disabled={!editingMember}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+              />
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
               <input
@@ -403,7 +425,12 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
                   </div>
                 )}
                 <div>
-                  <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      #{member.memberNumber}
+                    </span>
+                  </div>
                   <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                     member.status === 'active' 
                       ? 'bg-green-100 text-green-800' 
@@ -543,7 +570,12 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({
                 {/* Member Info */}
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900">{viewingMember.name}</h3>
+                    <div className="flex items-center space-x-3">
+                      <h3 className="text-xl font-semibold text-gray-900">{viewingMember.name}</h3>
+                      <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                        Member #{viewingMember.memberNumber}
+                      </span>
+                    </div>
                     <span className={`inline-block px-3 py-1 text-sm rounded-full mt-2 ${
                       viewingMember.status === 'active' 
                         ? 'bg-green-100 text-green-800' 

@@ -7,6 +7,7 @@ type Tables = Database['public']['Tables'];
 // Helper function to convert database format to app format
 const convertMemberFromDB = (dbMember: Tables['members']['Row']): Member => ({
   id: dbMember.id,
+  memberNumber: dbMember.member_number || 0,
   name: dbMember.name,
   phone: dbMember.phone,
   email: dbMember.email,
@@ -21,6 +22,7 @@ const convertMemberFromDB = (dbMember: Tables['members']['Row']): Member => ({
 });
 
 const convertMemberToDB = (member: Omit<Member, 'id' | 'attendanceHistory'>): Tables['members']['Insert'] => ({
+  member_number: member.memberNumber,
   name: member.name,
   phone: member.phone,
   email: member.email,
@@ -77,6 +79,7 @@ export const membersService = {
   async update(id: string, updates: Partial<Omit<Member, 'id' | 'attendanceHistory'>>): Promise<Member> {
     const dbUpdates: Partial<Tables['members']['Update']> = {};
     
+    if (updates.memberNumber) dbUpdates.member_number = updates.memberNumber;
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.phone) dbUpdates.phone = updates.phone;
     if (updates.email) dbUpdates.email = updates.email;

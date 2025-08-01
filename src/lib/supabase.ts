@@ -16,6 +16,7 @@ export interface Database {
       members: {
         Row: {
           id: string;
+          member_number: number;
           name: string;
           phone: string;
           email: string;
@@ -31,6 +32,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          member_number: number;
           name: string;
           phone: string;
           email: string;
@@ -46,6 +48,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          member_number?: number;
           name?: string;
           phone?: string;
           email?: string;

@@ -3,10 +3,11 @@ import { Member, AttendanceRecord, Donation, Visitor, Equipment, MessageTemplate
 export const mockMembers: Member[] = [
   {
     id: '1',
+    memberNumber: 1001,
     name: 'John Smith',
     phone: '+1234567890',
     email: 'john.smith@email.com',
-    department: 'choir',
+    department: 'Faith',
     baptismStatus: 'baptized',
     status: 'active',
     joinDate: '2020-01-15',
@@ -17,10 +18,11 @@ export const mockMembers: Member[] = [
   },
   {
     id: '2',
+    memberNumber: 1002,
     name: 'Sarah Johnson',
     phone: '+1234567891',
     email: 'sarah.johnson@email.com',
-    department: 'ushers',
+    department: 'Love',
     baptismStatus: 'baptized',
     status: 'active',
     joinDate: '2019-06-10',
@@ -31,10 +33,11 @@ export const mockMembers: Member[] = [
   },
   {
     id: '3',
+    memberNumber: 1003,
     name: 'Michael Brown',
     phone: '+1234567892',
     email: 'michael.brown@email.com',
-    department: 'media',
+    department: 'Hope',
     baptismStatus: 'not-baptized',
     status: 'active',
     joinDate: '2023-02-28',
