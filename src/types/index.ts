@@ -1,5 +1,6 @@
 export interface Member {
   id: string;
+  memberNumber: number;
   name: string;
   phone: string;
   email: string;
@@ -15,10 +16,14 @@ export interface Member {
 
 export interface AttendanceRecord {
   id: string;
-  memberId: string;
   serviceDate: string;
   serviceType: 'sunday-encounter' | 'wednesday-miracle' | 'friday-prayer';
-  present: boolean;
+  totalCount: number;
+  menCount: number;
+  womenCount: number;
+  youthCount: number;
+  childrenCount: number;
+  guestsCount: number;
   notes?: string;
 }
 

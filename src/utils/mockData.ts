@@ -3,10 +3,11 @@ import { Member, AttendanceRecord, Donation, Visitor, Equipment, MessageTemplate
 export const mockMembers: Member[] = [
   {
     id: '1',
+    memberNumber: 1001,
     name: 'John Smith',
     phone: '+1234567890',
     email: 'john.smith@email.com',
-    department: 'choir',
+    department: 'Faith',
     baptismStatus: 'baptized',
     status: 'active',
     joinDate: '2020-01-15',
@@ -17,10 +18,11 @@ export const mockMembers: Member[] = [
   },
   {
     id: '2',
+    memberNumber: 1002,
     name: 'Sarah Johnson',
     phone: '+1234567891',
     email: 'sarah.johnson@email.com',
-    department: 'ushers',
+    department: 'Love',
     baptismStatus: 'baptized',
     status: 'active',
     joinDate: '2019-06-10',
@@ -31,10 +33,11 @@ export const mockMembers: Member[] = [
   },
   {
     id: '3',
+    memberNumber: 1003,
     name: 'Michael Brown',
     phone: '+1234567892',
     email: 'michael.brown@email.com',
-    department: 'media',
+    department: 'Hope',
     baptismStatus: 'not-baptized',
     status: 'active',
     joinDate: '2023-02-28',
@@ -48,24 +51,39 @@ export const mockMembers: Member[] = [
 export const mockAttendance: AttendanceRecord[] = [
   {
     id: '1',
-    memberId: '1',
     serviceDate: '2024-01-07',
-    serviceType: 'sunday',
-    present: true
+    serviceType: 'sunday-encounter',
+    totalCount: 150,
+    menCount: 45,
+    womenCount: 65,
+    youthCount: 25,
+    childrenCount: 15,
+    guestsCount: 8,
+    notes: 'Great service with good participation'
   },
   {
     id: '2',
-    memberId: '2',
-    serviceDate: '2024-01-07',
-    serviceType: 'sunday',
-    present: true
+    serviceDate: '2024-01-10',
+    serviceType: 'wednesday-miracle',
+    totalCount: 85,
+    menCount: 25,
+    womenCount: 35,
+    youthCount: 15,
+    childrenCount: 8,
+    guestsCount: 2,
+    notes: 'Midweek service'
   },
   {
     id: '3',
-    memberId: '1',
-    serviceDate: '2024-01-10',
-    serviceType: 'wednesday',
-    present: false
+    serviceDate: '2024-01-12',
+    serviceType: 'friday-prayer',
+    totalCount: 65,
+    menCount: 20,
+    womenCount: 30,
+    youthCount: 10,
+    childrenCount: 3,
+    guestsCount: 2,
+    notes: 'Prayer and fasting session'
   }
 ];
 
