@@ -8,19 +8,14 @@ interface AttendanceTrackingProps {
   onMarkAttendance: (record: Omit<AttendanceRecord, 'id'>) => void;
 }
 
-interface AttendanceFormData {
-  [memberId: string]: {
-    present: boolean;
-    category: 'youth' | 'children' | 'guests' | 'regular';
-    notes?: string;
-  };
-}
-
-interface NumberAttendanceEntry {
-  memberNumber: number;
-  present: boolean;
-  category: 'youth' | 'children' | 'guests' | 'regular';
-  notes?: string;
+interface AttendanceCountData {
+  totalCount: number;
+  menCount: number;
+  womenCount: number;
+  youthCount: number;
+  childrenCount: number;
+  guestsCount: number;
+  notes: string;
 }
 
 const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({ 
@@ -30,156 +25,88 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [serviceType, setServiceType] = useState<'sunday-encounter' | 'wednesday-miracle' | 'friday-prayer'>('sunday-encounter');
-  const [showMarkForm, setShowMarkForm] = useState(false);
-  const [attendanceForm, setAttendanceForm] = useState<AttendanceFormData>({});
-  const [showNumberForm, setShowNumberForm] = useState(false);
-  const [numberAttendanceEntries, setNumberAttendanceEntries] = useState<NumberAttendanceEntry[]>([]);
-  const [memberNumberInput, setMemberNumberInput] = useState('');
-  const [currentEntryCategory, setCurrentEntryCategory] = useState<'youth' | 'children' | 'guests' | 'regular'>('regular');
-  const [currentEntryNotes, setCurrentEntryNotes] = useState('');
+  const [showCountForm, setShowCountForm] = useState(false);
+  const [countData, setCountData] = useState<AttendanceCountData>({
+    totalCount: 0,
+    menCount: 0,
+    womenCount: 0,
+    youthCount: 0,
+    childrenCount: 0,
+    guestsCount: 0,
+    notes: ''
+  });
 
   const todayAttendance = attendance.filter(
     record => record.serviceDate === selectedDate && record.serviceType === serviceType
   );
 
-  const activeMembers = members.filter(m => m.status === 'active');
+  // Get today's attendance count (there should be only one record per service per day)
+  const todayRecord = todayAttendance[0];
   
-  // Calculate stats by category
-  const getMembersByGroup = (group: 'Faith' | 'Love' | 'Hope') => {
-    return activeMembers.filter(m => m.department === group);
-  };
+  // Calculate total stats
+  const totalAttendanceToday = todayRecord?.totalCount || 0;
+  const menToday = todayRecord?.menCount || 0;
+  const womenToday = todayRecord?.womenCount || 0;
+  const youthToday = todayRecord?.youthCount || 0;
+  const childrenToday = todayRecord?.childrenCount || 0;
+  const guestsToday = todayRecord?.guestsCount || 0;
 
-  const faithMembers = getMembersByGroup('Faith');
-  const loveMembers = getMembersByGroup('Love');
-  const hopeMembers = getMembersByGroup('Hope');
-
-  // Calculate attendance by group
-  const getAttendanceByGroup = (group: 'Faith' | 'Love' | 'Hope') => {
-    const groupMembers = getMembersByGroup(group);
-    const groupAttendance = todayAttendance.filter(a => 
-      groupMembers.some(m => m.id === a.memberId)
-    );
-    return {
-      total: groupMembers.length,
-      present: groupAttendance.filter(a => a.present).length,
-      rate: groupMembers.length > 0 ? Math.round((groupAttendance.filter(a => a.present).length / groupMembers.length) * 100) : 0
-    };
-  };
-
-  const faithStats = getAttendanceByGroup('Faith');
-  const loveStats = getAttendanceByGroup('Love');
-  const hopeStats = getAttendanceByGroup('Hope');
-
-  const handleMemberToggle = (memberId: string, present: boolean, category: 'youth' | 'children' | 'guests' | 'regular') => {
-    setAttendanceForm(prev => ({
-      ...prev,
-      [memberId]: {
-        present,
-        category,
-        notes: prev[memberId]?.notes || ''
-      }
-    }));
-  };
-
-  const handleSubmitAttendance = () => {
-    Object.entries(attendanceForm).forEach(([memberId, data]) => {
-      // Check if attendance already exists for this member, date, and service
-      const existingRecord = attendance.find(
-        a => a.memberId === memberId && 
-             a.serviceDate === selectedDate && 
-             a.serviceType === serviceType
-      );
-
-      if (!existingRecord) {
-        onMarkAttendance({
-          memberId,
-          serviceDate: selectedDate,
-          serviceType,
-          present: data.present,
-          notes: data.notes
-        });
-      }
-    });
-
-    setAttendanceForm({});
-    setShowMarkForm(false);
-  };
-
-  const handleAddMemberByNumber = (present: boolean) => {
-    const memberNumber = parseInt(memberNumberInput);
-    if (!memberNumber) return;
-
-    const member = activeMembers.find(m => m.memberNumber === memberNumber);
-    if (!member) {
-      alert('Member number not found!');
-      return;
-    }
-
-    // Check if already marked for today
+  const handleSubmitCountAttendance = () => {
+    // Check if attendance already exists for this date and service
     const existingRecord = attendance.find(
-      a => a.memberId === member.id && 
-           a.serviceDate === selectedDate && 
-           a.serviceType === serviceType
+      a => a.serviceDate === selectedDate && a.serviceType === serviceType
     );
 
     if (existingRecord) {
-      alert('Attendance already marked for this member today!');
+      alert('Attendance already recorded for this date and service. Please edit the existing record.');
       return;
     }
 
-    // Check if already in current entries
-    const existingEntry = numberAttendanceEntries.find(e => e.memberNumber === memberNumber);
-    if (existingEntry) {
-      // Update existing entry
-      setNumberAttendanceEntries(prev => 
-        prev.map(entry => 
-          entry.memberNumber === memberNumber 
-            ? { ...entry, present, category: currentEntryCategory, notes: currentEntryNotes }
-            : entry
-        )
-      );
-    } else {
-      // Add new entry
-      setNumberAttendanceEntries(prev => [...prev, {
-        memberNumber,
-        present,
-        category: currentEntryCategory,
-        notes: currentEntryNotes
-      }]);
+    // Validate that counts make sense
+    const calculatedTotal = countData.menCount + countData.womenCount + countData.youthCount + countData.childrenCount + countData.guestsCount;
+    if (countData.totalCount !== calculatedTotal) {
+      alert(`Total count (${countData.totalCount}) doesn't match the sum of individual counts (${calculatedTotal}). Please check your numbers.`);
+      return;
     }
 
-    // Reset form
-    setMemberNumberInput('');
-    setCurrentEntryNotes('');
-  };
-
-  const handleSubmitNumberAttendance = () => {
-    numberAttendanceEntries.forEach(entry => {
-      const member = activeMembers.find(m => m.memberNumber === entry.memberNumber);
-      if (member) {
-        onMarkAttendance({
-          memberId: member.id,
-          serviceDate: selectedDate,
-          serviceType,
-          present: entry.present,
-          notes: entry.notes
-        });
-      }
+    onMarkAttendance({
+      serviceDate: selectedDate,
+      serviceType,
+      totalCount: countData.totalCount,
+      menCount: countData.menCount,
+      womenCount: countData.womenCount,
+      youthCount: countData.youthCount,
+      childrenCount: countData.childrenCount,
+      guestsCount: countData.guestsCount,
+      notes: countData.notes
     });
 
-    setNumberAttendanceEntries([]);
-    setShowNumberForm(false);
+    // Reset form
+    setCountData({
+      totalCount: 0,
+      menCount: 0,
+      womenCount: 0,
+      youthCount: 0,
+      childrenCount: 0,
+      guestsCount: 0,
+      notes: ''
+    });
+    setShowCountForm(false);
   };
 
-  const handleRemoveNumberEntry = (memberNumber: number) => {
-    setNumberAttendanceEntries(prev => prev.filter(e => e.memberNumber !== memberNumber));
+  const handleCountChange = (field: keyof AttendanceCountData, value: string | number) => {
+    setCountData(prev => ({
+      ...prev,
+      [field]: typeof value === 'string' ? value : value
+    }));
   };
 
   // Monthly stats
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthlyAttendance = attendance.filter(a => a.serviceDate.startsWith(currentMonth));
-  const monthlyAverage = monthlyAttendance.length > 0 
-    ? Math.round(monthlyAttendance.filter(a => a.present).length / monthlyAttendance.length * 100)
+  const monthlyTotalAttendance = monthlyAttendance.reduce((sum, record) => sum + record.totalCount, 0);
+  const monthlyAverageAttendance = monthlyAttendance.length > 0 
+    ? Math.round(monthlyTotalAttendance / monthlyAttendance.length)
     : 0;
 
   const serviceTypeLabels = {
@@ -193,7 +120,7 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Attendance Tracking</h1>
         <button
-          onClick={() => setShowNumberForm(true)}
+          onClick={() => setShowCountForm(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
         >
           <Plus className="h-5 w-5" />
@@ -234,489 +161,216 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
         </div>
       </div>
 
-      {/* Group Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      {/* Attendance Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-red-500">
-              <Users className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-lg bg-blue-500">
+              <Users className="h-5 w-5 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Faith Group</p>
-              <p className="text-2xl font-bold text-gray-900">{faithStats.present}/{faithStats.total}</p>
-              <p className="text-sm text-gray-500">{faithStats.rate}% attendance</p>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Total</p>
+              <p className="text-xl font-bold text-gray-900">{totalAttendanceToday}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-green-500">
-              <Users className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-lg bg-indigo-500">
+              <UserCheck className="h-5 w-5 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Love Group</p>
-              <p className="text-2xl font-bold text-gray-900">{loveStats.present}/{loveStats.total}</p>
-              <p className="text-sm text-gray-500">{loveStats.rate}% attendance</p>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Men</p>
+              <p className="text-xl font-bold text-gray-900">{menToday}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-blue-500">
-              <Users className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-lg bg-pink-500">
+              <Users2 className="h-5 w-5 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Hope Group</p>
-              <p className="text-2xl font-bold text-gray-900">{hopeStats.present}/{hopeStats.total}</p>
-              <p className="text-sm text-gray-500">{hopeStats.rate}% attendance</p>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Women</p>
+              <p className="text-xl font-bold text-gray-900">{womenToday}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 rounded-lg bg-green-500">
+              <Users className="h-5 w-5 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Youth</p>
+              <p className="text-xl font-bold text-gray-900">{youthToday}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 rounded-lg bg-yellow-500">
+              <Baby className="h-5 w-5 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Children</p>
+              <p className="text-xl font-bold text-gray-900">{childrenToday}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 rounded-lg bg-purple-500">
+              <UserPlus className="h-5 w-5 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-600">Guests</p>
+              <p className="text-xl font-bold text-gray-900">{guestsToday}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Attendance Form Modal */}
-      {showMarkForm && (
+
+
+      {/* Count-based Attendance Form Modal */}
+      {showCountForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Mark Attendance - {serviceTypeLabels[serviceType]}
+                  Mark Attendance Count - {serviceTypeLabels[serviceType]}
                 </h2>
                 <button
-                  onClick={() => setShowMarkForm(false)}
+                  onClick={() => setShowCountForm(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {/* Faith Group */}
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
-                    <Users className="h-5 w-5 mr-2" />
-                    Faith Group ({faithMembers.length} members)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {faithMembers.map(member => (
-                      <div key={member.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-gray-900">{member.name}</p>
-                            <p className="text-sm text-gray-500">{member.phone}</p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleMemberToggle(member.id, true, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === true
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => handleMemberToggle(member.id, false, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === false
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Absent
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'youth')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'youth'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Youth
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'children')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'children'
-                                ? 'bg-yellow-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Children
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'guests')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'guests'
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Guests
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Total Attendance Count
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={countData.totalCount}
+                    onChange={(e) => handleCountChange('totalCount', parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold text-center"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Breakdown by Category</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Men</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countData.menCount}
+                        onChange={(e) => handleCountChange('menCount', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Women</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countData.womenCount}
+                        onChange={(e) => handleCountChange('womenCount', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Youth</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countData.youthCount}
+                        onChange={(e) => handleCountChange('youthCount', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Children</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countData.childrenCount}
+                        onChange={(e) => handleCountChange('childrenCount', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Guests</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={countData.guestsCount}
+                        onChange={(e) => handleCountChange('guestsCount', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Love Group */}
-                <div>
-                  <h3 className="text-lg font-semibold text-green-600 mb-4 flex items-center">
-                    <Users className="h-5 w-5 mr-2" />
-                    Love Group ({loveMembers.length} members)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {loveMembers.map(member => (
-                      <div key={member.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-gray-900">{member.name}</p>
-                            <p className="text-sm text-gray-500">{member.phone}</p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleMemberToggle(member.id, true, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === true
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => handleMemberToggle(member.id, false, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === false
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Absent
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'youth')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'youth'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Youth
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'children')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'children'
-                                ? 'bg-yellow-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Children
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'guests')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'guests'
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Guests
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hope Group */}
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-600 mb-4 flex items-center">
-                    <Users className="h-5 w-5 mr-2" />
-                    Hope Group ({hopeMembers.length} members)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {hopeMembers.map(member => (
-                      <div key={member.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-gray-900">{member.name}</p>
-                            <p className="text-sm text-gray-500">{member.phone}</p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleMemberToggle(member.id, true, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === true
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => handleMemberToggle(member.id, false, 'regular')}
-                              className={`px-3 py-1 rounded text-xs ${
-                                attendanceForm[member.id]?.present === false
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Absent
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'youth')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'youth'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Youth
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'children')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'children'
-                                ? 'bg-yellow-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Children
-                          </button>
-                          <button
-                            onClick={() => handleMemberToggle(member.id, attendanceForm[member.id]?.present || false, 'guests')}
-                            className={`px-2 py-1 rounded text-xs ${
-                              attendanceForm[member.id]?.category === 'guests'
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            Guests
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => setShowMarkForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitAttendance}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Save Attendance
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Number-based Attendance Form Modal */}
-      {showNumberForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Mark Attendance by Number - {serviceTypeLabels[serviceType]}
-                </h2>
-                <button
-                  onClick={() => setShowNumberForm(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              {/* Member Number Input Form */}
-              <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Member Number
-                    </label>
-                    <input
-                      type="number"
-                      value={memberNumberInput}
-                      onChange={(e) => setMemberNumberInput(e.target.value)}
-                      placeholder="Enter member number"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddMemberByNumber(true);
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category
-                    </label>
-                    <select
-                      value={currentEntryCategory}
-                      onChange={(e) => setCurrentEntryCategory(e.target.value as any)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="regular">Regular</option>
-                      <option value="youth">Youth</option>
-                      <option value="children">Children</option>
-                      <option value="guests">Guests</option>
-                    </select>
-                  </div>
-                </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes (Optional)
                   </label>
-                  <input
-                    type="text"
-                    value={currentEntryNotes}
-                    onChange={(e) => setCurrentEntryNotes(e.target.value)}
-                    placeholder="Additional notes"
+                  <textarea
+                    value={countData.notes}
+                    onChange={(e) => handleCountChange('notes', e.target.value)}
+                    rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Additional notes about the service..."
                   />
                 </div>
 
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => handleAddMemberByNumber(true)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                  >
-                    <Check className="h-4 w-4" />
-                    <span>Mark Present</span>
-                  </button>
-                  <button
-                    onClick={() => handleAddMemberByNumber(false)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>Mark Absent</span>
-                  </button>
-                </div>
+                {/* Validation display */}
+                {countData.totalCount > 0 && (
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Total:</strong> {countData.totalCount} |{' '}
+                      <strong>Breakdown Sum:</strong> {countData.menCount + countData.womenCount + countData.youthCount + countData.childrenCount + countData.guestsCount}
+                      {countData.totalCount !== (countData.menCount + countData.womenCount + countData.youthCount + countData.childrenCount + countData.guestsCount) && (
+                        <span className="text-red-600 ml-2">⚠️ Numbers don't match!</span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Current Entries List */}
-              {numberAttendanceEntries.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Attendance Entries ({numberAttendanceEntries.length})
-                  </h3>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {numberAttendanceEntries.map((entry) => {
-                      const member = activeMembers.find(m => m.memberNumber === entry.memberNumber);
-                      return (
-                        <div
-                          key={entry.memberNumber}
-                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                              #{entry.memberNumber}
-                            </span>
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {member?.name || 'Unknown Member'}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {member?.department} • {entry.category}
-                              </p>
-                              {entry.notes && (
-                                <p className="text-xs text-gray-400">Notes: {entry.notes}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              entry.present
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {entry.present ? 'Present' : 'Absent'}
-                            </span>
-                            <button
-                              onClick={() => handleRemoveNumberEntry(entry.memberNumber)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Member Number Reference */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-semibold text-blue-900 mb-2">Quick Reference - Member Numbers</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                  <div>
-                    <p className="font-medium text-red-600 mb-1">Faith Group</p>
-                    {faithMembers.map(member => (
-                      <div key={member.id} className="text-gray-700">
-                        #{member.memberNumber} - {member.name}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-medium text-green-600 mb-1">Love Group</p>
-                    {loveMembers.map(member => (
-                      <div key={member.id} className="text-gray-700">
-                        #{member.memberNumber} - {member.name}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-medium text-blue-600 mb-1">Hope Group</p>
-                    {hopeMembers.map(member => (
-                      <div key={member.id} className="text-gray-700">
-                        #{member.memberNumber} - {member.name}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
                 <button
-                  onClick={() => setShowNumberForm(false)}
+                  onClick={() => setShowCountForm(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSubmitNumberAttendance}
-                  disabled={numberAttendanceEntries.length === 0}
+                  onClick={handleSubmitCountAttendance}
+                  disabled={countData.totalCount === 0}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg transition-colors"
                 >
-                  Save Attendance ({numberAttendanceEntries.length})
+                  Save Attendance
                 </button>
               </div>
             </div>
@@ -733,40 +387,39 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Men/Women</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Youth/Children</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {todayAttendance.slice(0, 10).map((record) => {
-                const member = members.find(m => m.id === record.memberId);
-                return (
-                  <tr key={record.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(record.serviceDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {serviceTypeLabels[record.serviceType]}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {member?.name || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {member?.department}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        record.present
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {record.present ? 'Present' : 'Absent'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {attendance.slice(0, 10).map((record) => (
+                <tr key={record.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(record.serviceDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {serviceTypeLabels[record.serviceType]}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    {record.totalCount}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {record.menCount}/{record.womenCount}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {record.youthCount}/{record.childrenCount}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {record.guestsCount}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                    {record.notes || '-'}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

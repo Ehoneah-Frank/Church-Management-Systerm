@@ -66,28 +66,40 @@ export interface Database {
       attendance: {
         Row: {
           id: string;
-          member_id: string;
           service_date: string;
           service_type: 'sunday-encounter' | 'wednesday-miracle' | 'friday-prayer';
-          present: boolean;
+          total_count: number;
+          men_count: number;
+          women_count: number;
+          youth_count: number;
+          children_count: number;
+          guests_count: number;
           notes: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          member_id: string;
           service_date: string;
           service_type: 'sunday-encounter' | 'wednesday-miracle' | 'friday-prayer';
-          present: boolean;
+          total_count: number;
+          men_count: number;
+          women_count: number;
+          youth_count: number;
+          children_count: number;
+          guests_count: number;
           notes?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
-          member_id?: string;
           service_date?: string;
           service_type?: 'sunday-encounter' | 'wednesday-miracle' | 'friday-prayer';
-          present?: boolean;
+          total_count?: number;
+          men_count?: number;
+          women_count?: number;
+          youth_count?: number;
+          children_count?: number;
+          guests_count?: number;
           notes?: string | null;
           created_at?: string;
         };

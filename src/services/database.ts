@@ -134,10 +134,14 @@ export const attendanceService = {
 
     return data.map(record => ({
       id: record.id,
-      memberId: record.member_id,
       serviceDate: record.service_date,
       serviceType: record.service_type,
-      present: record.present,
+      totalCount: record.total_count || 0,
+      menCount: record.men_count || 0,
+      womenCount: record.women_count || 0,
+      youthCount: record.youth_count || 0,
+      childrenCount: record.children_count || 0,
+      guestsCount: record.guests_count || 0,
       notes: record.notes || undefined
     }));
   },
@@ -146,10 +150,14 @@ export const attendanceService = {
     const { data, error } = await supabase
       .from('attendance')
       .insert({
-        member_id: record.memberId,
         service_date: record.serviceDate,
         service_type: record.serviceType,
-        present: record.present,
+        total_count: record.totalCount,
+        men_count: record.menCount,
+        women_count: record.womenCount,
+        youth_count: record.youthCount,
+        children_count: record.childrenCount,
+        guests_count: record.guestsCount,
         notes: record.notes || null
       })
       .select()
@@ -162,10 +170,14 @@ export const attendanceService = {
 
     return {
       id: data.id,
-      memberId: data.member_id,
       serviceDate: data.service_date,
       serviceType: data.service_type,
-      present: data.present,
+      totalCount: data.total_count || 0,
+      menCount: data.men_count || 0,
+      womenCount: data.women_count || 0,
+      youthCount: data.youth_count || 0,
+      childrenCount: data.children_count || 0,
+      guestsCount: data.guests_count || 0,
       notes: data.notes || undefined
     };
   }

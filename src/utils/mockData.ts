@@ -51,24 +51,39 @@ export const mockMembers: Member[] = [
 export const mockAttendance: AttendanceRecord[] = [
   {
     id: '1',
-    memberId: '1',
     serviceDate: '2024-01-07',
-    serviceType: 'sunday',
-    present: true
+    serviceType: 'sunday-encounter',
+    totalCount: 150,
+    menCount: 45,
+    womenCount: 65,
+    youthCount: 25,
+    childrenCount: 15,
+    guestsCount: 8,
+    notes: 'Great service with good participation'
   },
   {
     id: '2',
-    memberId: '2',
-    serviceDate: '2024-01-07',
-    serviceType: 'sunday',
-    present: true
+    serviceDate: '2024-01-10',
+    serviceType: 'wednesday-miracle',
+    totalCount: 85,
+    menCount: 25,
+    womenCount: 35,
+    youthCount: 15,
+    childrenCount: 8,
+    guestsCount: 2,
+    notes: 'Midweek service'
   },
   {
     id: '3',
-    memberId: '1',
-    serviceDate: '2024-01-10',
-    serviceType: 'wednesday',
-    present: false
+    serviceDate: '2024-01-12',
+    serviceType: 'friday-prayer',
+    totalCount: 65,
+    menCount: 20,
+    womenCount: 30,
+    youthCount: 10,
+    childrenCount: 3,
+    guestsCount: 2,
+    notes: 'Prayer and fasting session'
   }
 ];
 
