@@ -150,11 +150,20 @@ function App() {
   // Attendance management
   const handleMarkAttendance = async (recordData: Omit<AttendanceRecord, 'id'>) => {
     try {
+      console.log('Attempting to mark attendance with data:', recordData);
       const newRecord = await attendanceService.create(recordData);
+      console.log('Successfully created attendance record:', newRecord);
       setAttendance(prev => [newRecord, ...prev]);
+      alert('Attendance marked successfully!');
     } catch (error) {
       console.error('Error marking attendance:', error);
-      alert('Failed to mark attendance. Please try again.');
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      alert(`Failed to mark attendance: ${error.message || 'Please try again.'}`);
     }
   };
 

@@ -52,6 +52,10 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
   const guestsToday = todayRecord?.guestsCount || 0;
 
   const handleSubmitCountAttendance = () => {
+    console.log('Submitting count attendance:', countData);
+    console.log('Selected date:', selectedDate);
+    console.log('Service type:', serviceType);
+
     // Check if attendance already exists for this date and service
     const existingRecord = attendance.find(
       a => a.serviceDate === selectedDate && a.serviceType === serviceType
@@ -69,7 +73,7 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
       return;
     }
 
-    onMarkAttendance({
+    const recordToSubmit = {
       serviceDate: selectedDate,
       serviceType,
       totalCount: countData.totalCount,
@@ -79,7 +83,11 @@ const AttendanceTracking: React.FC<AttendanceTrackingProps> = ({
       childrenCount: countData.childrenCount,
       guestsCount: countData.guestsCount,
       notes: countData.notes
-    });
+    };
+
+    console.log('Submitting record:', recordToSubmit);
+
+    onMarkAttendance(recordToSubmit);
 
     // Reset form
     setCountData({
