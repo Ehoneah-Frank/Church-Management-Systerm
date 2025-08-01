@@ -147,6 +147,11 @@ export const attendanceService = {
   },
 
   async create(record: Omit<AttendanceRecord, 'id'>): Promise<AttendanceRecord> {
+    // Check if Supabase is configured
+    if (!supabase) {
+      throw new Error('Database connection not configured. Please check your Supabase credentials.');
+    }
+
     const { data, error } = await supabase
       .from('attendance')
       .insert({
@@ -165,7 +170,17 @@ export const attendanceService = {
 
     if (error) {
       console.error('Error creating attendance record:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error.message?.includes('JWT')) {
+        throw new Error('Database authentication failed. Please check your Supabase credentials.');
+      } else if (error.message?.includes('connection')) {
+        throw new Error('Cannot connect to database. Please check your Supabase URL and internet connection.');
+      } else if (error.code === '23505') {
+        throw new Error('Attendance already recorded for this date and service type.');
+      } else {
+        throw new Error(`Failed to save attendance: ${error.message}`);
+      }
     }
 
     return {

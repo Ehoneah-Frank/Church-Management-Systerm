@@ -152,9 +152,19 @@ function App() {
     try {
       const newRecord = await attendanceService.create(recordData);
       setAttendance(prev => [newRecord, ...prev]);
+      alert('Attendance recorded successfully!');
     } catch (error) {
       console.error('Error marking attendance:', error);
-      alert('Failed to mark attendance. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to mark attendance. Please try again.';
+      
+      // Show more helpful error messages
+      if (errorMessage.includes('credentials') || errorMessage.includes('authentication')) {
+        alert('Database connection issue: Please check if your Supabase credentials are properly configured in the .env.local file.');
+      } else if (errorMessage.includes('already recorded')) {
+        alert('Attendance has already been recorded for this date and service type. Please check existing records.');
+      } else {
+        alert(`Failed to mark attendance: ${errorMessage}`);
+      }
     }
   };
 
