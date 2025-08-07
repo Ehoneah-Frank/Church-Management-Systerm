@@ -1,6 +1,5 @@
 export interface Member {
   id: string;
-  memberNumber: number;
   name: string;
   phone: string;
   email: string;
@@ -33,7 +32,7 @@ export interface Donation {
   amount: number;
   category: 'tithe' | 'offering' | 'project' | 'special';
   date: string;
-  method: 'cash' | 'check' | 'online' | 'transfer';
+  method: 'cash' | 'check' | 'online' | 'transfer' | 'mobile-money';
   notes?: string;
   receiptSent: boolean;
 }
@@ -66,4 +65,32 @@ export interface MessageTemplate {
   subject: string;
   content: string;
   type: 'sms' | 'email';
+}
+
+export interface Role {
+  id: string;
+  name: 'super_admin' | 'admin' | 'user';
+  description: string;
+  permissions: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserRole {
+  id: string;
+  userId: string;
+  roleId: string;
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  roles: Role[];
+  profile?: {
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    department?: string;
+  };
 }

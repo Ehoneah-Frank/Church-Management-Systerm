@@ -22,9 +22,15 @@ CREATE TABLE attendance (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
   service_date DATE NOT NULL,
-  service_type TEXT NOT NULL CHECK (service_type IN ('sunday-encounter', 'wednesday-miracle', 'friday-prayer')),
+  service_type TEXT NOT NULL CHECK (service_type IN ('sunday', 'wednesday', 'special', 'sunday-encounter', 'wednesday-miracle', 'friday-prayer')),
   present BOOLEAN NOT NULL DEFAULT false,
   notes TEXT,
+  total_count INTEGER,
+  men_count INTEGER,
+  women_count INTEGER,
+  youth_count INTEGER,
+  children_count INTEGER,
+  guests_count INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -35,7 +41,7 @@ CREATE TABLE donations (
   amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
   category TEXT NOT NULL CHECK (category IN ('tithe', 'offering', 'project', 'special')),
   date DATE NOT NULL,
-  method TEXT NOT NULL CHECK (method IN ('cash', 'check', 'online', 'transfer')),
+  method TEXT NOT NULL CHECK (method IN ('cash', 'check', 'online', 'transfer', 'mobile-money')),
   notes TEXT,
   receipt_sent BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

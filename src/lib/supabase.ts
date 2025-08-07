@@ -1,20 +1,69 @@
 import { createClient } from '@supabase/supabase-js';
 
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please create a .env.local file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-  // Create a null client that will throw meaningful errors
-  throw new Error('Supabase not configured: Missing environment variables. Please check your .env.local file.');
+  throw new Error('Missing Supabase environment variables');
 }
 
-// Validate URL format
-if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
-  throw new Error('Invalid Supabase URL format. Should be: https://your-project.supabase.co');
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    storage: {
+      getItem: (key) => {
+        try {
+          return localStorage.getItem(key);
+        } catch {
+          return null;
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+        } catch {
+          // Ignore storage errors
+        }
+      },
+      removeItem: (key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Add error handling
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Supabase auth state change:', event, session?.user?.email);
+  
+  // If user signs out, clear all storage
+  if (event === 'SIGNED_OUT') {
+    localStorage.clear();
+    sessionStorage.clear();
+  }
+});
+
+// Test connection
+supabase.from('roles').select('count').limit(1).then(({ data, error }) => {
+  if (error) {
+    console.error('Supabase connection test failed:', error);
+  } else {
+    console.log('Supabase connection test successful');
+  }
+});
 
 // Database types
 export interface Database {

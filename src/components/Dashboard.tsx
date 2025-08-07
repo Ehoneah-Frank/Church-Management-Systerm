@@ -1,15 +1,18 @@
 import React from 'react';
 import { Users, Calendar, DollarSign, UserPlus, TrendingUp, Gift } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Member, Donation, AttendanceRecord } from '../types';
 
 interface DashboardProps {
   members: Member[];
   donations: Donation[];
   attendance: AttendanceRecord[];
-  onViewChange: (view: string) => void;
+  onViewChange: (view: string) => void; // This won't be used anymore
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ members, donations, attendance, onViewChange }) => {
+const Dashboard: React.FC<DashboardProps> = ({ members, donations, attendance }) => {
+  const navigate = useNavigate();
+  
   const totalMembers = members.length;
   const activeMembers = members.filter(m => m.status === 'active').length;
   const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
@@ -27,6 +30,9 @@ const Dashboard: React.FC<DashboardProps> = ({ members, donations, attendance, o
     return thisYearBirthday >= today && thisYearBirthday <= nextWeek;
   });
 
+  // Calculate total attendance from attendance records
+  const totalAttendance = attendance.reduce((sum, record) => sum + record.totalCount, 0);
+
   const stats = [
     {
       name: 'Total Members',
@@ -43,9 +49,9 @@ const Dashboard: React.FC<DashboardProps> = ({ members, donations, attendance, o
       color: 'bg-green-500'
     },
     {
-      name: 'Recent Attendance',
-      value: attendance.filter(a => a.present).length,
-      change: attendance.length > 0 ? `${attendance.length} total records` : 'No attendance records',
+      name: 'Total Attendance',
+      value: totalAttendance,
+      change: attendance.length > 0 ? `${attendance.length} service records` : 'No attendance records',
       icon: Calendar,
       color: 'bg-purple-500'
     },
@@ -62,28 +68,28 @@ const Dashboard: React.FC<DashboardProps> = ({ members, donations, attendance, o
     {
       name: 'Add Member',
       description: 'Register a new church member',
-      action: () => onViewChange('members'),
+      action: () => navigate('/members'),
       icon: Users,
       color: 'bg-blue-600 hover:bg-blue-700'
     },
     {
       name: 'Mark Attendance',
       description: 'Record service attendance',
-      action: () => onViewChange('attendance'),
+      action: () => navigate('/attendance'),
       icon: Calendar,
       color: 'bg-green-600 hover:bg-green-700'
     },
     {
       name: 'Record Donation',
       description: 'Log a new donation',
-      action: () => onViewChange('finances'),
+      action: () => navigate('/finances'),
       icon: DollarSign,
       color: 'bg-purple-600 hover:bg-purple-700'
     },
     {
       name: 'Add Visitor',
       description: 'Register a first-time visitor',
-      action: () => onViewChange('visitors'),
+      action: () => navigate('/visitors'),
       icon: UserPlus,
       color: 'bg-yellow-600 hover:bg-yellow-700'
     }

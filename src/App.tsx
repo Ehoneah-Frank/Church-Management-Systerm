@@ -1,362 +1,386 @@
-import React, { useState, useEffect } from 'react';
-import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
+import { useEffect, useState, useRef } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import AuthForm from './components/AuthForm';
 import MemberDirectory from './components/MemberDirectory';
 import AttendanceTracking from './components/AttendanceTracking';
 import Finances from './components/Finances';
-import Communications from './components/Communications';
-import VisitorFollowUp from './components/VisitorFollowUp';
 import EquipmentTracker from './components/EquipmentTracker';
-import { 
-  Member, 
-  AttendanceRecord, 
-  Donation, 
-  Visitor, 
-  Equipment, 
-  MessageTemplate 
-} from './types';
-import { 
-  membersService, 
-  attendanceService, 
-  donationsService, 
-  visitorsService, 
-  equipmentService, 
-  templatesService,
-  testDatabaseConnection
-} from './services/database';
+import VisitorFollowUp from './components/VisitorFollowUp';
+import Communications from './components/Communications';
+import Dashboard from './components/Dashboard';
+import Layout from './components/Layout';
+import { useAuth } from './lib/AuthContext';
+import { membersService, attendanceService, donationsService, visitorsService, equipmentService } from './services/database';
+import { Member, Donation, AttendanceRecord, Visitor, Equipment } from './types';
+import { Loader2 } from 'lucide-react';
+import UserManagement from './components/UserManagement';
+import { supabase } from './lib/supabase';
 
-function App() {
-  const [currentView, setCurrentView] = useState('dashboard');
+export default function App() {
+  const { user, role, loading: authLoading } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [donations, setDonations] = useState<Donation[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const membersLoadedRef = useRef(false);
 
-  // Load data from Supabase on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log('Loading data from Supabase...');
-        setIsLoading(true);
-        setError(null);
-
-        // First test the database connection
-        const connectionTest = await testDatabaseConnection();
-        console.log('Database connection test result:', connectionTest);
-        
-        if (!connectionTest.connected) {
-          throw new Error(`Database connection failed: ${connectionTest.error}`);
-        }
-
-        const [membersData, attendanceData, donationsData, visitorsData, equipmentData, templatesData] = await Promise.all([
-          membersService.getAll(),
-          attendanceService.getAll(),
-          donationsService.getAll(),
-          visitorsService.getAll(),
-          equipmentService.getAll(),
-          templatesService.getAll()
-        ]);
-
-        setMembers(membersData);
-        setAttendance(attendanceData);
-        setDonations(donationsData);
-        setVisitors(visitorsData);
-        setEquipment(equipmentData);
-        setTemplates(templatesData);
-
-        console.log('Data loading completed');
-      } catch (error) {
-        console.error('Error loading data from Supabase:', error);
-        setError('Failed to load data from database');
-        // No fallback to mock data - start with empty arrays
-        setMembers([]);
-        setAttendance([]);
-        setDonations([]);
-        setVisitors([]);
-        setEquipment([]);
-        setTemplates([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // No need for localStorage save effects - data is saved directly to Supabase
-
-  // Clear all data (for development/testing)
-  const clearAllData = () => {
-    if (window.confirm('This will clear all data from the database. Are you sure?')) {
-      setMembers([]);
-      setAttendance([]);
-      setDonations([]);
-      setVisitors([]);
-      setEquipment([]);
-      setTemplates([]);
-      setError(null);
+  // Handler functions for members
+  const handleAddMember = async (member: Omit<Member, 'id' | 'attendanceHistory'>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to add members.");
+      return;
+    }
+    try {
+      const newMember = await membersService.create(member);
+      setMembers(prevMembers => [newMember, ...prevMembers]);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  // Member management
-  const handleAddMember = async (memberData: Omit<Member, 'id' | 'attendanceHistory'>) => {
-    try {
-      console.log('Attempting to add member:', memberData);
-      const newMember = await membersService.create(memberData);
-      console.log('Member added successfully:', newMember);
-      setMembers(prev => [newMember, ...prev]);
-    } catch (error) {
-      console.error('Error adding member:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      alert(`Failed to add member: ${error.message || 'Unknown error'}`);
+  const handleUpdateMember = async (id: string, updates: Partial<Member>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to update members.");
+      return;
     }
-  };
-
-  const handleUpdateMember = async (id: string, memberData: Partial<Member>) => {
     try {
-      const updatedMember = await membersService.update(id, memberData);
-      setMembers(prev => 
-        prev.map(member => 
-          member.id === id ? updatedMember : member
-        )
-      );
-    } catch (error) {
-      console.error('Error updating member:', error);
-      alert('Failed to update member. Please try again.');
+      const updatedMember = await membersService.update(id, updates);
+      setMembers(prevMembers => prevMembers.map(m => (m.id === id ? updatedMember : m)));
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (confirm('Are you sure you want to delete this member?')) {
-      try {
-        await membersService.delete(id);
-        setMembers(prev => prev.filter(member => member.id !== id));
-      } catch (error) {
-        console.error('Error deleting member:', error);
-        alert('Failed to delete member. Please try again.');
-      }
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to delete members.");
+      return;
+    }
+    try {
+      await membersService.delete(id);
+      setMembers(prevMembers => prevMembers.filter(m => m.id !== id));
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  // Attendance management
-  const handleMarkAttendance = async (recordData: Omit<AttendanceRecord, 'id'>) => {
+  // Handler functions for attendance
+  const handleMarkAttendance = async (record: Omit<AttendanceRecord, 'id'>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to mark attendance.");
+      return;
+    }
     try {
-      const newRecord = await attendanceService.create(recordData);
-      setAttendance(prev => [newRecord, ...prev]);
-      alert('Attendance recorded successfully!');
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to mark attendance. Please try again.';
-      
-      // Show more helpful error messages
-      if (errorMessage.includes('credentials') || errorMessage.includes('authentication')) {
-        alert('Database connection issue: Please check if your Supabase credentials are properly configured in the .env.local file.');
-      } else if (errorMessage.includes('already recorded')) {
-        alert('Attendance has already been recorded for this date and service type. Please check existing records.');
-      } else {
-        alert(`Failed to mark attendance: ${errorMessage}`);
-      }
+      const newAttendance = await attendanceService.create(record);
+      setAttendance(prevAttendance => [newAttendance, ...prevAttendance]);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  // Donation management
-  const handleAddDonation = async (donationData: Omit<Donation, 'id'>) => {
+  // Handler functions for donations
+  const handleAddDonation = async (donation: Omit<Donation, 'id'>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to record donations.");
+      return;
+    }
     try {
-      const newDonation = await donationsService.create(donationData);
-      setDonations(prev => [newDonation, ...prev]);
-      
-      // Simulate SMS receipt sending
-      if (donationData.receiptSent === false) {
-        setTimeout(() => {
-          setDonations(current => 
-            current.map(d => 
-              d.id === newDonation.id ? { ...d, receiptSent: true } : d
-            )
-          );
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error adding donation:', error);
-      alert('Failed to add donation. Please try again.');
+      const newDonation = await donationsService.create(donation);
+      setDonations(prevDonations => [newDonation, ...prevDonations]);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  // Communication management
-  const handleSendMessage = (memberIds: string[], message: string, type: 'sms' | 'email') => {
-    // In a real app, this would integrate with SMS/email APIs
-    console.log(`Sending ${type} to ${memberIds.length} members:`, message);
-  };
-
-  const handleSaveTemplate = async (templateData: Omit<MessageTemplate, 'id'>) => {
-    try {
-      const newTemplate = await templatesService.create(templateData);
-      setTemplates(prev => [newTemplate, ...prev]);
-    } catch (error) {
-      console.error('Error saving template:', error);
-      alert('Failed to save template. Please try again.');
+  // Handler functions for visitors
+  const handleAddVisitor = async (visitor: Omit<Visitor, 'id'>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to add visitors.");
+      return;
     }
-  };
-
-  const handleDeleteTemplate = async (id: string) => {
     try {
-      await templatesService.delete(id);
-      setTemplates(prev => prev.filter(template => template.id !== id));
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      alert('Failed to delete template. Please try again.');
-    }
-  };
-
-  // Visitor management
-  const handleAddVisitor = async (visitorData: Omit<Visitor, 'id'>) => {
-    try {
-      const newVisitor = await visitorsService.create(visitorData);
-      setVisitors(prev => [newVisitor, ...prev]);
-    } catch (error) {
-      console.error('Error adding visitor:', error);
-      alert('Failed to add visitor. Please try again.');
+      const newVisitor = await visitorsService.create(visitor);
+      setVisitors(prevVisitors => [newVisitor, ...prevVisitors]);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
   const handleUpdateFollowUp = async (id: string, status: Visitor['followUpStatus']) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to update visitor follow-up.");
+      return;
+    }
     try {
       const updatedVisitor = await visitorsService.updateFollowUp(id, status);
-      setVisitors(prev => 
-        prev.map(visitor => 
-          visitor.id === id ? updatedVisitor : visitor
-        )
-      );
-    } catch (error) {
-      console.error('Error updating visitor follow-up:', error);
-      alert('Failed to update visitor follow-up. Please try again.');
+      setVisitors(prevVisitors => prevVisitors.map(v => (v.id === id ? updatedVisitor : v)));
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  // Equipment management
-  const handleAddEquipment = async (equipmentData: Omit<Equipment, 'id'>) => {
+  // Handler functions for equipment
+  const handleAddEquipment = async (equipmentItem: Omit<Equipment, 'id'>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to add equipment.");
+      return;
+    }
     try {
-      const newEquipment = await equipmentService.create(equipmentData);
-      setEquipment(prev => [newEquipment, ...prev]);
-    } catch (error) {
-      console.error('Error adding equipment:', error);
-      alert('Failed to add equipment. Please try again.');
+      const newEquipment = await equipmentService.create(equipmentItem);
+      setEquipment(prevEquipment => [newEquipment, ...prevEquipment]);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  const handleUpdateEquipment = async (id: string, equipmentData: Partial<Equipment>) => {
+  const handleUpdateEquipment = async (id: string, updates: Partial<Equipment>) => {
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to update equipment.");
+      return;
+    }
     try {
-      const updatedEquipment = await equipmentService.update(id, equipmentData);
-      setEquipment(prev => 
-        prev.map(item => 
-          item.id === id ? updatedEquipment : item
-        )
-      );
-    } catch (error) {
-      console.error('Error updating equipment:', error);
-      alert('Failed to update equipment. Please try again.');
+      const updatedEquipment = await equipmentService.update(id, updates);
+      setEquipment(prevEquipment => prevEquipment.map(e => (e.id === id ? updatedEquipment : e)));
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
   const handleDeleteEquipment = async (id: string) => {
-    if (confirm('Are you sure you want to delete this equipment?')) {
-      try {
-        await equipmentService.delete(id);
-        setEquipment(prev => prev.filter(item => item.id !== id));
-      } catch (error) {
-        console.error('Error deleting equipment:', error);
-        alert('Failed to delete equipment. Please try again.');
-      }
+    if (role !== 'Admin' && role !== 'superAdmin') {
+      alert("You don't have permission to delete equipment.");
+      return;
+    }
+    try {
+      await equipmentService.delete(id);
+      setEquipment(prevEquipment => prevEquipment.filter(e => e.id !== id));
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
-  const renderCurrentView = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return (
+  // Communications handlers
+  const handleSendMessage = async (memberIds: string[], message: string, type: 'sms' | 'email') => {
+    console.log('Sending message:', { memberIds, message, type });
+    // Implement your message sending logic here
+  };
+
+  const handleSaveTemplate = async (template: any) => {
+    console.log('Saving template:', template);
+    // Implement template saving logic
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    console.log('Deleting template:', id);
+    // Implement template deletion logic
+  };
+
+  // Load data when user is authenticated
+  useEffect(() => {
+    if (user && !authLoading && !membersLoadedRef.current) {
+      setDataLoading(true);
+      setError(null);
+      membersLoadedRef.current = true;
+      
+      Promise.all([
+        membersService.getAll(),
+        donationsService.getAll(),
+        attendanceService.getAll(),
+        visitorsService.getAll(),
+        equipmentService.getAll()
+      ])
+        .then(([membersData, donationsData, attendanceData, visitorsData, equipmentData]) => {
+          setMembers(membersData);
+          setDonations(donationsData);
+          setAttendance(attendanceData);
+          setVisitors(visitorsData);
+          setEquipment(equipmentData);
+        })
+        .catch(e => {
+          setError(e.message);
+          membersLoadedRef.current = false;
+        })
+        .finally(() => {
+          setDataLoading(false);
+        });
+    } else if (!user && !authLoading) {
+      setMembers([]);
+      setDonations([]);
+      setAttendance([]);
+      setVisitors([]);
+      setEquipment([]);
+      setDataLoading(false);
+      setError(null);
+      membersLoadedRef.current = false;
+    }
+  }, [user, authLoading]);
+
+  // Show loading while auth is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-gray-100">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+          <p className="text-lg text-gray-700">Loading Community Hub...</p>
+          <p className="text-sm text-gray-500">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if no user
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  // Show error if there was one
+  if (error) {
+    return (
+      <Layout>
+        <div className="text-center text-red-500">
+          <p>Error loading data: {error}</p>
+          <button 
+            onClick={() => {
+              setError(null);
+              membersLoadedRef.current = false;
+              window.location.reload();
+            }} 
+            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            Retry
+          </button>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show main app with routing
+  return (
+    <Layout>
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <Dashboard
+              members={members}
+              donations={donations}
+              attendance={attendance}
+              onViewChange={() => {}}
+            />
+          } 
+        />
+        <Route path="/dashboard" element={
           <Dashboard
             members={members}
             donations={donations}
             attendance={attendance}
-            onViewChange={setCurrentView}
+            onViewChange={() => {}}
           />
-        );
-      case 'members':
-        return (
-          <MemberDirectory
-            members={members}
-            onAddMember={handleAddMember}
-            onUpdateMember={handleUpdateMember}
-            onDeleteMember={handleDeleteMember}
-          />
-        );
-      case 'attendance':
-        return (
-          <AttendanceTracking
-            members={members}
-            attendance={attendance}
-            onMarkAttendance={handleMarkAttendance}
-          />
-        );
-      case 'finances':
-        return (
-          <Finances
-            members={members}
-            donations={donations}
-            onAddDonation={handleAddDonation}
-          />
-        );
-      case 'communications':
-        return (
-          <Communications
-            members={members}
-            templates={templates}
-            onSendMessage={handleSendMessage}
-            onSaveTemplate={handleSaveTemplate}
-            onDeleteTemplate={handleDeleteTemplate}
-          />
-        );
-      case 'visitors':
-        return (
-          <VisitorFollowUp
-            visitors={visitors}
-            onAddVisitor={handleAddVisitor}
-            onUpdateFollowUp={handleUpdateFollowUp}
-          />
-        );
-      case 'equipment':
-        return (
-          <EquipmentTracker
-            equipment={equipment}
-            onAddEquipment={handleAddEquipment}
-            onUpdateEquipment={handleUpdateEquipment}
-            onDeleteEquipment={handleDeleteEquipment}
-          />
-        );
-      default:
-        return <Dashboard members={members} donations={donations} attendance={attendance} onViewChange={setCurrentView} />;
-    }
-  };
-
-  return (
-    <Layout 
-      currentView={currentView} 
-      onViewChange={setCurrentView} 
-      onResetData={clearAllData}
-      isLoading={isLoading}
-      error={error}
-    >
-      {renderCurrentView()}
+        } />
+        <Route 
+          path="/members" 
+          element={
+            <MemberDirectory
+              members={members}
+              onAddMember={handleAddMember}
+              onUpdateMember={handleUpdateMember}
+              onDeleteMember={handleDeleteMember}
+            />
+          } 
+        />
+        <Route 
+          path="/attendance" 
+          element={
+            <AttendanceTracking
+              members={members}
+              attendance={attendance}
+              onMarkAttendance={handleMarkAttendance}
+            />
+          } 
+        />
+        <Route 
+          path="/finances" 
+          element={
+            <Finances
+              members={members}
+              donations={donations}
+              onAddDonation={handleAddDonation}
+            />
+          } 
+        />
+        <Route 
+          path="/communications" 
+          element={
+            <Communications
+              members={members}
+              templates={[]}
+              onSendMessage={handleSendMessage}
+              onSaveTemplate={handleSaveTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
+            />
+          } 
+        />
+        <Route 
+          path="/visitors" 
+          element={
+            <VisitorFollowUp
+              visitors={visitors}
+              onAddVisitor={handleAddVisitor}
+              onUpdateFollowUp={handleUpdateFollowUp}
+            />
+          } 
+        />
+        <Route 
+          path="/equipment" 
+          element={
+            <EquipmentTracker
+              equipment={equipment}
+              onAddEquipment={handleAddEquipment}
+              onUpdateEquipment={handleUpdateEquipment}
+              onDeleteEquipment={handleDeleteEquipment}
+            />
+          } 
+        />
+        <Route 
+          path="/users" 
+          element={
+            <UserManagement />
+          } 
+        />
+      </Routes>
     </Layout>
   );
 }
 
-export default App;
+const forceLogout = async () => {
+  try {
+    console.log('Force logout: Starting...');
+    
+    // Clear Supabase session with global scope
+    await supabase.auth.signOut({ scope: 'global' });
+    
+    // Clear all browser storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Clear any cached data
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+    }
+    
+    // Force reload to login page
+    window.location.replace('/');
+    
+    console.log('Force logout: Completed');
+  } catch (error) {
+    console.error('Force logout error:', error);
+    // Force reload anyway
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.replace('/');
+  }
+};
